@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+
+<!-- Open Graph: anteprima su WhatsApp/social quando si condivide il link -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Guarda il video 🔥">
+<meta property="og:description" content="Tocca per iniziare">
+<meta property="og:image" content="https://incursore73-gif.github.io/video-Tiziano/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://incursore73-gif.github.io/video-Tiziano/">
+
+<title>Ruota il telefono</title>
+
+<link rel="preload" href="preview.jpg" as="image" fetchpriority="high">
+<link rel="preload" href="loop.mp4" as="video" type="video/mp4">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; touch-action:manipulation; }
+  html, body {
+    height:100%; background:#000; overflow:hidden;
+    font-family: 'Arial Narrow', Impact, 'Helvetica Neue', sans-serif;
+  }
+
+  #stage {
+    position:fixed; top:0; left:0; width:100vw; height:100vh; height:100dvh;
+    z-index:5;
+    opacity:0;
+    padding:1.1rem;
+    transition: opacity 0.4s ease, transform 0.2s ease;
+    pointer-events:none;
+  }
+  #stage.visible {
+    opacity:1;
+    pointer-events:auto;
+  }
+  #stage::after {
+    content:'';
+    position:absolute; inset:0;
+    pointer-events:none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.45) 100%);
+  }
+  #bgLoop.hidden { opacity:0; }
+
+  #loadingSpinner {
+    position:fixed; z-index:6; top:50%; left:50%;
+    width:2.4rem; height:2.4rem;
+    margin:-1.2rem 0 0 -1.2rem;
+    border:3px solid rgba(255,255,255,0.25);
+    border-top-color:#fff;
+    border-radius:50%;
+    display:none;
+    animation:spin 0.8s linear infinite;
+  }
+  #loadingSpinner.active { display:block; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  /* Rotazione forzata: usata quando il telefono è fisicamente orizzontale
+     ma lo schermo resta bloccato in portrait (rotation lock attivo) */
+  #stage.forceLandscape {
+    width:100vh; width:100dvh; height:100vw;
+    top:50%; left:50%;
+    transform: translate(-50%,-50%) rotate(90deg);
+  }
+  #stage.forceLandscapeFlip {
+    width:100vh; width:100dvh; height:100vw;
+    top:50%; left:50%;
+    transform: translate(-50%,-50%) rotate(-90deg);
+  }
+
+  video {
+    width:100%; height:100%; object-fit:cover;
+    display:block; background:#000;
+  }
+
+  #vid {
+    position:relative; z-index:2;
+    object-fit:contain;
+    background:transparent;
+    border-radius:18px;
+    border:2px solid rgba(255,255,255,0.3);
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
+
+  #blurBg {
+    position:absolute; inset:0;
+    background: url('preview.jpg') center/cover no-repeat;
+    filter: blur(35px) brightness(0.5);
+    transform: scale(1.15); /* evita bordi sfocati visibili ai margini */
+    z-index:1;
+  }
+
+  .frameCorner {
+    position:absolute;
+    width:1.8rem; height:1.8rem;
+    border-color: rgba(255,120,40,0.9);
+    border-style:solid;
+    border-width:0;
+    pointer-events:none;
+  }
+  .frameCorner.tl { top:0.9rem; left:0.9rem; border-top-width:3px; border-left-width:3px; border-top-left-radius:10px; }
+  .frameCorner.tr { top:0.9rem; right:0.9rem; border-top-width:3px; border-right-width:3px; border-top-right-radius:10px; }
+  .frameCorner.bl { bottom:0.9rem; left:0.9rem; border-bottom-width:3px; border-left-width:3px; border-bottom-left-radius:10px; }
+  .frameCorner.br { bottom:0.9rem; right:0.9rem; border-bottom-width:3px; border-right-width:3px; border-bottom-right-radius:10px; }
+
+  #bgLoop {
+    position:fixed; inset:0; z-index:2;
+    width:100%; height:100%; object-fit:cover;
+    background:#000;
+    transition: opacity 0.4s ease;
+  }
+
+  /* ---------- Effetto apertura a sipario sul video ---------- */
+  .curtain {
+    position:fixed; left:0; right:0; z-index:10;
+    background:#000;
+    pointer-events:none;
+    display:none; /* nascosti finché il video principale non parte */
+  }
+  .curtain.active { display:block; }
+  .curtain.top { top:0; height:50%; transform:translateY(0); }
+  .curtain.bottom { bottom:0; height:50%; transform:translateY(0); }
+  .curtain::after {
+    content:'';
+    position:absolute; left:0; right:0; height:2px;
+    background: rgba(255,120,40,0.9);
+    box-shadow: 0 0 12px rgba(255,120,40,0.7);
+  }
+  .curtain.top::after { bottom:0; }
+  .curtain.bottom::after { top:0; }
+  body.curtainOpen .curtain.top {
+    transform:translateY(-100%);
+    transition: transform 0.9s cubic-bezier(.65,0,.35,1);
+  }
+  body.curtainOpen .curtain.bottom {
+    transform:translateY(100%);
+    transition: transform 0.9s cubic-bezier(.65,0,.35,1);
+  }
+
+  /* Overlay tap iniziale: sblocca sensori (iOS) + audio */
+  #tapOverlay {
+    position:fixed; inset:0; z-index:20;
+    display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(160deg, rgba(255,60,0,0.35) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.45) 100%);
+    color:#fff; text-align:center; padding:2rem;
+  }
+  #playBtn {
+    width:9rem; height:9rem; border-radius:50%;
+    background:linear-gradient(145deg, #ff7a3d 0%, #ff5a1f 60%, #e6440e 100%);
+    border:4px solid #fff;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:
+      0 0 45px rgba(255,90,30,0.75),
+      0 8px 20px rgba(0,0,0,0.5),
+      inset 0 2px 6px rgba(255,255,255,0.4);
+    animation:pulse 1.4s ease-in-out infinite;
+    margin:0 auto;
+    cursor:pointer;
+  }
+  #playBtn::after {
+    content:'';
+    width:0; height:0;
+    border-top:1.65rem solid transparent;
+    border-bottom:1.65rem solid transparent;
+    border-left:2.7rem solid #fff;
+    margin-left:0.6rem;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+  }
+  @keyframes pulse {
+    0%, 100% { transform:scale(1); box-shadow:0 0 45px rgba(255,90,30,0.75), 0 8px 20px rgba(0,0,0,0.5), inset 0 2px 6px rgba(255,255,255,0.4); }
+    50%      { transform:scale(1.08); box-shadow:0 0 60px rgba(255,90,30,0.9), 0 8px 24px rgba(0,0,0,0.5), inset 0 2px 6px rgba(255,255,255,0.4); }
+  }
+
+  #errorMsg {
+    position:fixed; inset:0; z-index:25;
+    display:none;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.85);
+    color:#fff; text-align:center; padding:2rem;
+  }
+  #errorMsg.active { display:flex; }
+  #errorMsg span {
+    font-size:1.3rem; font-weight:700; line-height:1.5;
+  }
+  #errorMsg button {
+    display:block; margin:1.2rem auto 0;
+    padding:0.7rem 1.6rem; font-size:1rem; font-weight:700;
+    background:#ff5a1f; color:#fff; border:none; border-radius:8px;
+    cursor:pointer;
+  }
+  #unmuteBtn {
+    position:fixed; bottom:2rem; right:2rem; z-index:30;
+    width:3rem; height:3rem; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.15); color:white; font-size:1.3rem;
+    display:none;
+  }
+</style>
+</head>
+<body>
+
+<video id="bgLoop" autoplay muted loop playsinline>
+  <source src="loop.mp4" type="video/mp4">
+</video>
+
+<div id="tapOverlay">
+  <div>
+    <div id="playBtn"></div>
+  </div>
+</div>
+
+<div id="loadingSpinner"></div>
+
+<div id="stage">
+  <div id="blurBg"></div>
+  <video id="vid" playsinline loop preload="auto" poster="preview.jpg">
+    <source src="primo.mp4" type="video/mp4">
+  </video>
+  <div class="frameCorner tl"></div>
+  <div class="frameCorner tr"></div>
+  <div class="frameCorner bl"></div>
+  <div class="frameCorner br"></div>
+</div>
+
+<div class="curtain top"></div>
+<div class="curtain bottom"></div>
+
+<div id="errorMsg">
+  <div>
+    <span>⚠️ Video non disponibile.<br>Controlla la connessione.</span>
+    <button id="retryBtn">Riprova</button>
+  </div>
+</div>
+
+<button id="unmuteBtn">🔇</button>
+
+<script>
+const tapOverlay = document.getElementById('tapOverlay');
+const video      = document.getElementById('vid');
+const unmuteBtn  = document.getElementById('unmuteBtn');
+const stage      = document.getElementById('stage');
+const bgLoop     = document.getElementById('bgLoop');
+bgLoop.addEventListener('error', () => {
+  console.error('loop.mp4 non caricato correttamente:', bgLoop.error);
+});
+const spinner    = document.getElementById('loadingSpinner');
+const errorMsg   = document.getElementById('errorMsg');
+const retryBtn   = document.getElementById('retryBtn');
+
+let playTimeoutId = null;
+
+function showError() {
+  spinner.classList.remove('active');
+  errorMsg.classList.add('active');
+}
+
+video.addEventListener('waiting', () => { if (isPlaying) spinner.classList.add('active'); });
+video.addEventListener('playing', () => {
+  spinner.classList.remove('active');
+  errorMsg.classList.remove('active');
+  if (playTimeoutId) { clearTimeout(playTimeoutId); playTimeoutId = null; }
+});
+video.addEventListener('error', showError);
+
+retryBtn.addEventListener('click', () => {
+  errorMsg.classList.remove('active');
+  video.load();
+  video.play().catch(showError);
+});
+
+let unlocked  = false;
+let isPlaying = false;
+
+// Fade-in graduale del volume invece di uno scatto brusco a piena intensità
+function fadeInVolume(el, duration = 400) {
+  const steps = 16;
+  let i = 0;
+  el.volume = 0;
+  const timer = setInterval(() => {
+    i++;
+    el.volume = Math.min(1, i / steps);
+    if (i >= steps) clearInterval(timer);
+  }, duration / steps);
+}
+
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch (e) {} // non supportato o negato: nessun problema, fallback normale
+}
+
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; }
+}
+
+// true quando lo schermo ha davvero ruotato (rotazione sbloccata)
+function screenIsLandscape() {
+  const angle = screen.orientation ? screen.orientation.angle : (window.orientation || 0);
+  // Alcuni browser riportano 270° invece di -90° per la rotazione opposta:
+  // il modulo 180 normalizza entrambi i casi (90 e 270) come landscape.
+  return Math.abs(angle % 180) === 90;
+}
+
+// Se il video parte capovolto sul tuo device, cambia questo a true/false:
+const INVERT_ROTATION = true;
+const FLAT_Z_LIMIT = 8; // |z| oltre questo = telefono quasi piatto, dato inaffidabile
+
+// Ultima direzione fisica nota (per la rotazione forzata quando lo schermo
+// resta in portrait). Default 90°: finché non arriva il primo dato
+// dall'accelerometro, il video parte comunque ruotato in modo sensato.
+let lastRotateDeg = 90;
+
+// Aggiorna SOLO la rotazione CSS del video (mai play/pause): se lo schermo
+// è realmente ruotato (OS), nessuna trasformazione serve; altrimenti
+// applichiamo la rotazione forzata nella direzione fisica più recente.
+function updateOrientationVisual() {
+  if (!unlocked) return;
+  stage.classList.remove('forceLandscape', 'forceLandscapeFlip');
+  if (!screenIsLandscape()) {
+    stage.classList.add(lastRotateDeg > 0 ? 'forceLandscape' : 'forceLandscapeFlip');
+  }
+}
+
+function handleScreenOrientation() {
+  updateOrientationVisual();
+}
+
+// Fallback fisico: aggiorna la direzione anche con rotazione bloccata
+// dall'utente, leggendo l'accelerometro grezzo invece dello stato OS.
+function handleDeviceMotion(e) {
+  const acc = e.accelerationIncludingGravity;
+  if (!acc || acc.x === null || acc.y === null) return;
+
+  const x = acc.x, y = acc.y, z = acc.z || 0;
+  if (Math.abs(z) > FLAT_Z_LIMIT) return; // telefono piatto: mantieni l'ultima direzione nota
+
+  const angle = Math.atan2(x, y) * (180 / Math.PI);
+  let rotateDeg = angle > 0 ? -90 : 90;
+  if (INVERT_ROTATION) rotateDeg *= -1;
+  lastRotateDeg = rotateDeg;
+
+  updateOrientationVisual();
+}
+
+function startListening() {
+  window.addEventListener('orientationchange', handleScreenOrientation);
+  window.matchMedia('(orientation: landscape)').addEventListener('change', handleScreenOrientation);
+  window.addEventListener('devicemotion', handleDeviceMotion);
+  updateOrientationVisual();
+}
+
+function requestOrientationPermissionIfNeeded() {
+  const requests = [];
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    requests.push(DeviceOrientationEvent.requestPermission().catch(() => {}));
+  }
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+    requests.push(DeviceMotionEvent.requestPermission().catch(() => {}));
+  }
+  return Promise.all(requests);
+}
+
+function unlockAudio() {
+  // "Prime" del video entro il gesture per sbloccare l'audio più avanti
+  video.muted = false;
+  const p = video.play();
+  if (p) {
+    return p.then(() => { video.pause(); video.currentTime = 0; })
+      .catch(() => {
+        // Se anche col gesture il play con audio fallisce, fallback muto + bottone
+        video.muted = true;
+        unmuteBtn.style.display = 'block';
+      });
+  }
+  return Promise.resolve();
+}
+
+function requestFullscreenSafe() {
+  const el = document.documentElement;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (req) {
+    req.call(el).catch(() => {}); // su iOS fallisce silenziosamente, va bene così
+  }
+}
+
+// Fa partire il video principale subito, in qualunque orientamento sia il telefono
+function startMainVideo() {
+  isPlaying = true;
+  stage.classList.add('visible');
+  video.play().then(() => fadeInVolume(video)).catch(showError);
+  bgLoop.classList.add('hidden');
+  setTimeout(() => bgLoop.pause(), 400); // pausa dopo il fade, risparmia risorse
+  requestWakeLock();
+
+  // Effetto sipario: i pannelli compaiono ORA (prima erano nascosti, per
+  // non coprire il loop di sfondo), coprono il video appena partito.
+  // Se lo schermo NON ha già ruotato da solo (rotazione bloccata, il caso
+  // più comune), diamo più tempo per girare fisicamente il telefono prima
+  // di aprire il sipario, altrimenti l'effetto passa inosservato.
+  document.querySelectorAll('.curtain').forEach(c => c.classList.add('active'));
+  const curtainDelay = screenIsLandscape() ? 300 : 2200;
+  requestAnimationFrame(() => {
+    setTimeout(() => document.body.classList.add('curtainOpen'), curtainDelay);
+  });
+
+  // Contatore visualizzazioni: conta ogni volta che il video parte davvero
+  // (non solo l'apertura pagina). Servizio esterno gratuito, nessun backend
+  // tuo necessario. Controlla il conteggio visitando in un browser:
+  // https://countapi.mileshilliard.com/api/v1/get/video-by-tizaino-views
+  fetch('https://countapi.mileshilliard.com/api/v1/hit/video-by-tizaino-views').catch(() => {});
+
+  // Timeout di sicurezza: se non parte entro 20s (rete instabile o file pesante), mostra errore
+  playTimeoutId = setTimeout(() => {
+    if (video.paused || video.readyState < 3) showError();
+  }, 20000);
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  unlocked = true;
+  tapOverlay.style.display = 'none';
+
+  if (navigator.vibrate) navigator.vibrate(10); // micro-feedback tattile, se supportato
+
+  requestFullscreenSafe();
+
+  bgLoop.muted = false;
+  bgLoop.play().then(() => fadeInVolume(bgLoop)).catch(()=>{});
+
+  unlockAudio()
+    .then(requestOrientationPermissionIfNeeded)
+    .then(() => {
+      startListening();  // imposta subito la rotazione visiva corretta
+      startMainVideo();  // e fa partire il video, in qualunque orientamento
+    });
+}, { once:true });
+
+// Pausa automatica se l'utente cambia app/blocca lo schermo; riprende al ritorno
+document.addEventListener('visibilitychange', () => {
+  if (!unlocked) return;
+
+  if (document.hidden) {
+    if (isPlaying) video.pause();
+    releaseWakeLock();
+  } else if (isPlaying) {
+    video.play().catch(()=>{});
+    requestWakeLock();
+  }
+});
+
+unmuteBtn.addEventListener('click', () => {
+  video.muted = false;
+  unmuteBtn.style.display = 'none';
+});
+
+// Tentativo di ridurre la barra indirizzi anche prima del tap (funziona su
+// alcuni browser Android tramite lo scroll nativo; su iOS/altri non ha
+// effetto, ma è innocuo). Non sostituisce il fullscreen vero, che scatta
+// comunque al tap tramite requestFullscreenSafe().
+window.addEventListener('load', () => {
+  setTimeout(() => window.scrollTo(0, 1), 50);
+});
+</script>
+
+</body>
+</html>
