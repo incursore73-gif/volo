@@ -304,8 +304,8 @@ function stepCar(c,dt){
   c.boost=!!inp.nos&&inp.th>0&&c.nitro>0;
   if(c.boost)c.nitro=Math.max(0,c.nitro-30*dt);
   else c.nitro=Math.min(100,c.nitro+(c.isAI?9:7)*dt);
-  // sterzo: angolo ridotto in velocità
-  const steer=inp.st*(0.52/(1+Math.abs(along)*0.028));
+  // sterzo: angolo ridotto in velocità (segno: "+1" = gira a destra a schermo)
+  const steer=-inp.st*(0.52/(1+Math.abs(along)*0.028));
   const rate=clamp((along/WB)*Math.tan(steer),-TURN_MAX,TURN_MAX);
   c.h=(c.h+rate*dt%TAU+TAU)%TAU;
   // motore / freni / resistenze
@@ -373,7 +373,7 @@ function stepCar(c,dt){
   // visuale
   c.g.position.set(c.x,0,c.z);
   c.g.rotation.y=c.h;
-  const sv=inp.st*0.45;
+  const sv=-inp.st*0.45;
   for(const w of c.wSteer)w.rotation.y=sv;
   c.spin+=along/0.42*dt;
   for(const w of c.wSpin)w.rotation.x=c.spin;
@@ -400,12 +400,12 @@ function collide(){
 function aiThink(c,dt){
   const inp=c.input;
   if(state!=='run'){inp.th=0;inp.br=0;inp.st=0;inp.nos=false;return;}
-  if(c.rev>0){c.rev-=dt;inp.th=0;inp.br=1;inp.st=c.rev>0.55?0.5:-0.5;inp.nos=false;return;}
+  if(c.rev>0){c.rev-=dt;inp.th=0;inp.br=1;inp.st=c.rev>0.55?-0.5:0.5;inp.nos=false;return;}
   const k=c.hint;
   const la=(k+Math.max(3,Math.round((5+Math.abs(c.along)*0.55)/ds)))%N;
   const off=clamp(c.laneOff-Math.sign(scArr[k]||1)*3.0,-5.5,5.5);
   const tx=pts[la].x+nrm[la].x*off,tz=pts[la].z+nrm[la].z*off;
-  inp.st=clamp(wrapA(Math.atan2(tx-c.x,tz-c.z)-c.h)*2.2,-1,1);
+  inp.st=clamp(wrapA(c.h-Math.atan2(tx-c.x,tz-c.z))*2.2,-1,1);   // convenzione coerente con stepCar
   const w=Math.max(6,Math.round((10+Math.abs(c.along)*1.5)/ds));
   let cm=0;
   for(let o=2;o<2+w;o++)cm=Math.max(cm,curvArr[(k+o)%N]);
