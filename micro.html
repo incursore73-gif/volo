@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Micro Racing 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--sat:env(safe-area-inset-top,0px);--sar:env(safe-area-inset-right,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px)}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#0e1210;color:#eef1ea;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif}
+canvas#c{position:fixed;inset:0;width:100%;height:100%}
+#hud{position:fixed;top:calc(8px + var(--sat));left:calc(14px + var(--sal));pointer-events:none;line-height:1.05;text-shadow:0 1px 4px #000}
+#pos{font-size:44px;font-weight:800}
+#lap{font-size:20px;font-weight:600}
+#tm{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+#bl{font-size:18px;font-weight:600;color:#ffd84d;font-variant-numeric:tabular-nums}
+#mm{position:fixed;top:calc(8px + var(--sat));right:calc(14px + var(--sar));width:150px;height:150px;border-radius:12px;background:rgba(10,14,18,.5);border:1px solid rgba(255,255,255,.25);pointer-events:none}
+#spd{position:fixed;bottom:calc(12px + var(--sab));left:50%;transform:translateX(-50%);font-size:24px;font-weight:600;pointer-events:none;text-shadow:0 1px 4px #000}
+#off{position:fixed;top:16%;left:50%;transform:translateX(-50%);font-size:26px;font-weight:800;color:#ffd84d;background:rgba(10,14,18,.6);border:2px solid #ffd84d;border-radius:10px;padding:2px 14px;pointer-events:none;opacity:0;transition:opacity .2s;text-shadow:0 1px 4px #000}
+#ww{position:fixed;top:16%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:800;color:#ff5a4d;background:rgba(10,14,18,.6);border:2px solid #ff5a4d;border-radius:10px;padding:2px 14px;pointer-events:none;opacity:0;transition:opacity .2s;text-shadow:0 1px 4px #000}
+#nosbar{position:fixed;left:calc(14px + var(--sal));bottom:calc(14px + var(--sab) + 52vh + 10px);width:min(30vw,240px);height:12px;border-radius:6px;background:rgba(10,14,18,.55);border:1px solid rgba(255,255,255,.3);pointer-events:none;overflow:hidden;opacity:.9}
+#nosbar i{display:block;height:100%;width:50%;background:linear-gradient(90deg,#2fa8ff,#9fe8ff)}
+#gap{font-size:17px;font-weight:700;color:#9fe8ff}
+#msg{position:fixed;left:0;right:0;top:26%;text-align:center;font-size:clamp(60px,16vh,120px);font-weight:800;pointer-events:none;text-shadow:0 3px 14px #000;opacity:0}
+.fab{position:fixed;top:calc(10px + var(--sat));left:50%;width:40px;height:40px;border-radius:20px;border:1px solid rgba(255,255,255,.3);background:rgba(10,14,18,.5);font-size:18px;color:#fff;z-index:5}
+#snd{margin-left:-46px}#rst{margin-left:6px}
+#pedals{position:fixed;left:0;bottom:0;top:0;width:34%;display:flex;align-items:flex-end;padding:0 8px calc(14px + var(--sab)) calc(14px + var(--sal));gap:10px;z-index:2}
+#pedals button{height:52vh;border:2px solid rgba(255,255,255,.35);border-radius:18px;color:#fff;font:700 24px/1 "Barlow Condensed",sans-serif;background:rgba(10,14,18,.4);display:flex;align-items:center;justify-content:center}
+#gas{flex:1.2;border-color:rgba(60,220,120,.65)!important}
+#brk{flex:.8;border-color:rgba(255,190,40,.8)!important}
+#nos{flex:.55;border-color:rgba(90,200,255,.85)!important;font-size:20px}
+#pedals button.on{background:rgba(255,255,255,.35)}
+#wheelzone{position:fixed;right:0;top:0;bottom:0;width:52%;z-index:2}
+#wheel{position:absolute;left:50%;top:50%;width:130px;height:130px;margin:-65px 0 0 -65px;border-radius:50%;border:10px solid rgba(255,255,255,.85);box-shadow:0 2px 12px rgba(0,0,0,.45),inset 0 0 16px rgba(0,0,0,.35)}
+#wheel::before{content:'';position:absolute;left:50%;top:50%;width:92px;height:10px;margin:-5px 0 0 -46px;background:rgba(255,255,255,.85);border-radius:6px}
+#wheel::after{content:'';position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:rgba(255,255,255,.85)}
+#rotate{display:none;position:fixed;inset:0;z-index:40;background:#0e1210;color:#eef1ea;font-size:26px;font-weight:700;text-align:center;align-items:center;justify-content:center}
+@media (orientation:portrait){#rotate{display:flex}}
+.panel{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,14,18,.72);text-align:center;padding:16px}
+.panel h1{margin:0;font-size:clamp(40px,10vh,84px);font-weight:800;color:#ffd400;text-shadow:0 3px 12px #000}
+.panel p{margin:6px 0;font-size:clamp(16px,3.4vh,24px);font-weight:600}
+.panel button{margin-top:14px;font:800 clamp(22px,4.6vh,32px) "Barlow Condensed",sans-serif;color:#111;background:#ffd400;border:none;border-radius:14px;padding:10px 46px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.hidden{display:none!important}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="pos">4º</div>
+  <div id="lap">GIRO 1/3</div>
+  <div id="tm">0:00.00</div>
+  <div id="bl"></div>
+  <div id="gap"></div>
+</div>
+<canvas id="mm"></canvas>
+<div id="spd">0 km/h</div>
+<div id="off">FUORI PISTA! RALLENTI…</div>
+<div id="ww">SENSO CONTRARIO!</div>
+<div id="nosbar"><i></i></div>
+<div id="msg"></div>
+<button id="snd" class="fab">🔊</button>
+<button id="rst" class="fab">↺</button>
+<div id="pedals">
+  <button id="gas">GAS</button>
+  <button id="brk">FRENO</button>
+  <button id="nos">N₂O</button>
+</div>
+<div id="wheelzone"><div id="wheel"></div></div>
+<div id="rotate"><div>🔄<br>Ruota il telefono:<br>si gioca in orizzontale</div></div>
+<div id="menu" class="panel">
+  <h1>MICRO RACING 3D</h1>
+  <p>Vista dall'alto · 3 giri · 4 auto</p>
+  <p>SX = gas, freno e nitro &nbsp;·&nbsp; DX = sterzo</p>
+  <p>Resta sul circuito: fuori pista rallenti sulla sabbia!</p>
+  <p id="rec"></p>
+  <button id="play">GIOCA</button>
+</div>
+<div id="end" class="panel hidden">
+  <h1 id="endpos">2º POSTO</h1>
+  <p id="endtime"></p>
+  <p id="endbest"></p>
+  <button id="again">RIVANCI</button>
+</div>
+<script type="module" src="micro.js"></script>
+</body>
+</html>
